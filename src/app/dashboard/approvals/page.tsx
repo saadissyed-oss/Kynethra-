@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface Decision {
   id: string;
@@ -22,11 +22,12 @@ interface Decision {
 export default function ApprovalsPage() {
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [loading, setLoading] = useState(true);
+  const resolvedIds = useRef<Set<string>>(new Set());
 
   async function fetchHoldDecisions() {
     const res = await fetch("/api/decisions/pending");
     const data = await res.json();
-    setDecisions(data);
+    setDecisions(data.filter((d: Decision) => !resolvedIds.current.has(d.id)));
     setLoading(false);
   }
 
@@ -37,7 +38,8 @@ export default function ApprovalsPage() {
   }, []);
 
   async function resolveDecision(id: string, resolution: "approved" | "rejected") {
-    // Optimistically remove from queue immediately
+    // Mark as resolved so polls don't re-surface it
+    resolvedIds.current.add(id);
     setDecisions((prev) => prev.filter((d) => d.id !== id));
 
     try {
@@ -53,11 +55,12 @@ export default function ApprovalsPage() {
         }),
       });
       if (!res.ok) {
-        // Restore accurate state if the request failed
+        resolvedIds.current.delete(id);
         await fetchHoldDecisions();
       }
     } catch (err) {
       console.error("Resolution error:", err);
+      resolvedIds.current.delete(id);
       await fetchHoldDecisions();
     }
   }
