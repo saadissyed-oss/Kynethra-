@@ -25,10 +25,17 @@ export default function ApprovalsPage() {
   const resolvedIds = useRef<Set<string>>(new Set());
 
   async function fetchHoldDecisions() {
-    const res = await fetch("/api/decisions/pending");
-    const data = await res.json();
-    setDecisions(data.filter((d: Decision) => !resolvedIds.current.has(d.id)));
-    setLoading(false);
+    try {
+      const res = await fetch("/api/decisions/pending");
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setDecisions(data.filter((d: Decision) => !resolvedIds.current.has(d.id)));
+      }
+    } catch (err) {
+      console.error("Failed to fetch decisions:", err);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
