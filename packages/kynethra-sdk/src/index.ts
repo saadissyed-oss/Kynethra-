@@ -1,18 +1,53 @@
-const KYNETHRA_API_URL = process.env.KYNETHRA_API_URL || "http://localhost:3000";
-const KYNETHRA_API_KEY = process.env.KYNETHRA_API_KEY || "";
+export type Decision = "ALLOW" | "HOLD" | "BLOCK";
 
-export const kynethra = {
-  init({ apiUrl, apiKey }: { apiUrl?: string; apiKey: string }) {
-    (globalThis as any).__kynethraApiUrl = apiUrl || KYNETHRA_API_URL;
-    (globalThis as any).__kynethraApiKey = apiKey;
-  },
+export interface GovernResponse {
+  decision: Decision;
+  reason: string;
+  latency_ms: number;
+}
 
-  wrap<T extends (...args: any[]) => Promise<any>>(toolFn: T): T {
-    return (async (...args: any[]) => {
-      // Placeholder — full implementation in task 4.1.1
-      return toolFn(...args);
-    }) as T;
-  },
+export interface KynethraConfig {
+  apiKey: string;
+  apiUrl?: string;
+}
+
+let config: KynethraConfig = {
+  apiKey: "",
+  apiUrl: "http://localhost:3000",
 };
 
-export type { };
+export const kynethra = {
+  init(cfg: KynethraConfig) {
+    config = { ...config, ...cfg };
+  },
+
+  async wrap<T extends (...args: any[]) => Promise<any>>(
+    toolFn: T,
+    meta: { payload: string; action_type: string }
+  ): Promise<ReturnType<T> | GovernResponse> {
+    const response = await fetch(`${config.apiUrl}/api/govern`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Kynethra-Key": config.apiKey,
+      },
+      body: JSON.stringify({
+        payload: meta.payload,
+        action_type: meta.action_type,
+      }),
+    });
+
+    const result: GovernResponse = await response.json();
+
+    if (result.decision === "BLOCK") {
+      throw new Error(`Action blocked by Kynethra: ${result.reason}`);
+    }
+
+    if (result.decision === "HOLD") {
+      return result;
+    }
+
+    // ALLOW — execute the original function
+    return toolFn();
+  },
+};
