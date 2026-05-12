@@ -54,7 +54,7 @@ export default function ApprovalsPage() {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
-          "X-Kynethra-Key": "8d5fc1a9638b815fbd795d3e45c30187c1dafa64ba93f05e55bdbbc27d5aa667",
+          "X-Kynethra-Key": process.env.NEXT_PUBLIC_DASHBOARD_AGENT_KEY || "",5aa667",
         },
         body: JSON.stringify({
           resolution,

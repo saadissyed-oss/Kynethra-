@@ -4,6 +4,8 @@ import { evaluateGuardrails } from "@/lib/guardrails";
 import { getActiveRules } from "@/lib/policy-cache";
 import { writeAuditLog } from "@/lib/audit";
 
+const VALID_ACTION_TYPES = ["email", "payment", "api", "database"];
+
 export async function POST(req: NextRequest) {
   const start = Date.now();
 
@@ -23,6 +25,7 @@ export async function POST(req: NextRequest) {
 
   const { payload, action_type } = body;
 
+  // 3. Validate inputs
   if (!payload || !action_type) {
     return NextResponse.json(
       { error: "payload and action_type are required" },
@@ -30,7 +33,26 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 3. Scope mapping
+  if (!VALID_ACTION_TYPES.includes(action_type)) {
+    return NextResponse.json(
+      { error: "Invalid action_type. Must be email, payment, api, or database" },
+      { status: 400 }
+    );
+  }
+
+  if (typeof payload !== "string" || payload.length > 10000) {
+    return NextResponse.json(
+      { error: "Payload must be a string under 10,000 characters" },
+      { status: 400 }
+    );
+  }
+
+  // 4. Sanitize payload
+  const sanitizedPayload = payload
+    .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
+    .trim();
+
+  // 5. Scope mapping
   const scopeMap: Record<string, string> = {
     database: "db",
     email: "email",
@@ -39,16 +61,16 @@ export async function POST(req: NextRequest) {
   };
   const scope = scopeMap[action_type] || action_type;
 
-  // 4. Fast guardrail check
+  // 6. Fast guardrail check
   const rules = await getActiveRules();
-  const guardrailResult = evaluateGuardrails(payload, scope as any, rules);
+  const guardrailResult = evaluateGuardrails(sanitizedPayload, scope as any, rules);
 
   if (guardrailResult.triggered && guardrailResult.action === "BLOCK") {
     const latency_ms = Date.now() - start;
 
     await writeAuditLog({
       agent_id: agent.id,
-      payload,
+      payload: sanitizedPayload,
       action_type,
       decision: "BLOCK",
       guardrail_hit: guardrailResult.ruleId,
@@ -69,7 +91,7 @@ export async function POST(req: NextRequest) {
 
     await writeAuditLog({
       agent_id: agent.id,
-      payload,
+      payload: sanitizedPayload,
       action_type,
       decision: "HOLD",
       guardrail_hit: guardrailResult.ruleId,
@@ -85,12 +107,12 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // 5. LLM eval — placeholder until Anthropic key is added
+  // 7. LLM eval — placeholder until Anthropic key is added
   const latency_ms = Date.now() - start;
 
   await writeAuditLog({
     agent_id: agent.id,
-    payload,
+    payload: sanitizedPayload,
     action_type,
     decision: "ALLOW",
     eval_path: "llm-eval",
