@@ -3,6 +3,7 @@ import { authenticateAgent } from "@/lib/auth";
 import { evaluateGuardrails } from "@/lib/guardrails";
 import { getActiveRules } from "@/lib/policy-cache";
 import { writeAuditLog } from "@/lib/audit";
+import { sendSlackNotification } from "@/lib/notify";
 
 const VALID_ACTION_TYPES = ["email", "payment", "api", "database"];
 
@@ -89,7 +90,7 @@ export async function POST(req: NextRequest) {
   if (guardrailResult.triggered && guardrailResult.action === "HOLD") {
     const latency_ms = Date.now() - start;
 
-    await writeAuditLog({
+    const auditRow = await writeAuditLog({
       agent_id: agent.id,
       payload: sanitizedPayload,
       action_type,
@@ -97,6 +98,18 @@ export async function POST(req: NextRequest) {
       guardrail_hit: guardrailResult.ruleId,
       eval_path: "fast-block",
       reason: `Held by ${guardrailResult.ruleName}`,
+      latency_ms,
+    });
+
+    // Fire Slack notification — non-blocking
+    sendSlackNotification({
+      agent_id: agent.id,
+      action_type,
+      payload: sanitizedPayload,
+      decision: "HOLD",
+      guardrail_hit: guardrailResult.ruleId,
+      reason: `Held by ${guardrailResult.ruleName}`,
+      decision_id: auditRow.id,
       latency_ms,
     });
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 interface Decision {
   id: string;
@@ -22,17 +22,16 @@ interface Decision {
 export default function ApprovalsPage() {
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [loading, setLoading] = useState(true);
-  const resolvedIds = useRef<Set<string>>(new Set());
 
   async function fetchHoldDecisions() {
     try {
       const res = await fetch("/api/decisions/pending");
       const data = await res.json();
       if (Array.isArray(data)) {
-        setDecisions(data.filter((d: Decision) => !resolvedIds.current.has(d.id)));
+        setDecisions(data);
       }
     } catch (err) {
-      console.error("Failed to fetch decisions:", err);
+      console.error("Fetch error:", err);
     } finally {
       setLoading(false);
     }
@@ -45,31 +44,18 @@ export default function ApprovalsPage() {
   }, []);
 
   async function resolveDecision(id: string, resolution: "approved" | "rejected") {
-    // Mark as resolved so polls don't re-surface it
-    resolvedIds.current.add(id);
     setDecisions((prev) => prev.filter((d) => d.id !== id));
-
-    try {
-      const res = await fetch(`/api/decisions/${id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Kynethra-Key": process.env.NEXT_PUBLIC_DASHBOARD_AGENT_KEY || "",5aa667",
-        },
-        body: JSON.stringify({
-          resolution,
-          resolved_by: "operator@kynethra.com",
-        }),
-      });
-      if (!res.ok) {
-        resolvedIds.current.delete(id);
-        await fetchHoldDecisions();
-      }
-    } catch (err) {
-      console.error("Resolution error:", err);
-      resolvedIds.current.delete(id);
-      await fetchHoldDecisions();
-    }
+    await fetch(`/api/decisions/${id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Kynethra-Key": process.env.NEXT_PUBLIC_DASHBOARD_AGENT_KEY || "",
+      },
+      body: JSON.stringify({
+        resolution,
+        resolved_by: "operator@kynethra.com",
+      }),
+    });
   }
 
   if (loading) {
