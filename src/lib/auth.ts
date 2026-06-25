@@ -6,6 +6,12 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+export function authenticateOperator(req: NextRequest): boolean {
+  const key = req.headers.get("X-Kynethra-Operator-Key");
+  const expected = process.env.NEXT_PUBLIC_OPERATOR_KEY;
+  return !!(expected && key && key === expected);
+}
+
 export async function authenticateAgent(req: NextRequest) {
   const apiKey = req.headers.get("X-Kynethra-Key");
 

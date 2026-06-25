@@ -18,10 +18,17 @@ export default function GuardrailsPage() {
   const [loading, setLoading] = useState(true);
 
   async function fetchPolicies() {
-    const res = await fetch("/api/guardrails");
-    const data = await res.json();
-    setPolicies(data);
-    setLoading(false);
+    try {
+      const res = await fetch("/api/guardrails");
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        setPolicies(data);
+      }
+    } catch (err) {
+      console.error("Failed to fetch guardrails:", err);
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function togglePolicy(id: string, enabled: boolean) {
@@ -54,11 +61,11 @@ export default function GuardrailsPage() {
           <div>
             <h1 className="text-2xl font-bold">Guardrails Manager</h1>
             <p className="text-gray-400 text-sm mt-1">
-              Toggle rules without redeployment — changes take effect in &lt;50ms
+              Toggle rules without redeployment. Changes take effect in under 50ms.
             </p>
           </div>
           <Link href="/dashboard" className="text-gray-400 hover:text-white text-sm">
-            ← Back to Dashboard
+            Back to Dashboard
           </Link>
         </div>
 
@@ -99,7 +106,6 @@ export default function GuardrailsPage() {
                   {policy.severity}
                 </span>
 
-                {/* Toggle */}
                 <button
                   onClick={() => togglePolicy(policy.id, !policy.enabled)}
                   className={`relative w-12 h-6 rounded-full transition-colors ${

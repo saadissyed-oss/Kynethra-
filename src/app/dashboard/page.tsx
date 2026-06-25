@@ -35,11 +35,16 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
 
   async function fetchData() {
-    const res = await fetch("/api/dashboard/stats");
-    const data = await res.json();
-    setStats(data.stats);
-    setFeed(data.feed);
-    setLoading(false);
+    try {
+      const res = await fetch("/api/dashboard/stats");
+      const data = await res.json();
+      if (data.stats) setStats(data.stats);
+      if (data.feed) setFeed(data.feed);
+    } catch (err) {
+      console.error("Dashboard fetch error:", err);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -83,7 +88,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Stats Bar */}
         <div className="grid grid-cols-3 md:grid-cols-6 gap-4 mb-8">
           {statCards.map((card) => (
             <div key={card.label} className="bg-gray-900 border border-gray-800 rounded-lg p-4">
@@ -93,7 +97,6 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        {/* Live Feed */}
         <h2 className="text-lg font-semibold mb-4">Live Decision Feed</h2>
         <div className="space-y-2">
           {feed.map((decision) => (
