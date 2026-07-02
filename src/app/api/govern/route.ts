@@ -6,6 +6,7 @@ import { getActiveRules } from "@/lib/policy-cache";
 import { writeAuditLog } from "@/lib/audit";
 import { sendSlackNotification } from "@/lib/notify";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { evaluateLLM } from "@/lib/llm-eval";
 
 validateEnv();
 
@@ -88,7 +89,6 @@ export async function POST(req: NextRequest) {
 
   if (guardrailResult.triggered && guardrailResult.action === "BLOCK") {
     const latency_ms = Date.now() - start;
-
     await writeAuditLog({
       agent_id: agent.id,
       payload: sanitizedPayload,
@@ -99,7 +99,6 @@ export async function POST(req: NextRequest) {
       reason: `Blocked by ${guardrailResult.ruleName}`,
       latency_ms,
     });
-
     return NextResponse.json({
       decision: "BLOCK",
       reason: `Blocked by guardrail ${guardrailResult.ruleId}: ${guardrailResult.ruleName}`,
@@ -107,54 +106,56 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  // 8. LLM risk evaluation
+  const llmResult = await evaluateLLM(sanitizedPayload, action_type);
+
+  // 9. Conservative merge — stricter of guardrail + LLM wins
+  let finalDecision = llmResult.decision;
   if (guardrailResult.triggered && guardrailResult.action === "HOLD") {
-    const latency_ms = Date.now() - start;
+    finalDecision = "HOLD";
+  }
 
-    const auditRow = await writeAuditLog({
-      agent_id: agent.id,
-      payload: sanitizedPayload,
-      action_type,
-      decision: "HOLD",
-      guardrail_hit: guardrailResult.ruleId,
-      eval_path: "fast-block",
-      reason: `Held by ${guardrailResult.ruleName}`,
-      latency_ms,
-    });
+  const latency_ms = Date.now() - start;
 
+  // 10. Write audit log
+  const auditRow = await writeAuditLog({
+    agent_id: agent.id,
+    payload: sanitizedPayload,
+    action_type,
+    decision: finalDecision,
+    risk_score: llmResult.risk_score,
+    blast_radius: llmResult.blast_radius as any,
+    reversible: llmResult.reversible,
+    intent: llmResult.intent,
+    reason: llmResult.reason,
+    guardrail_hit: guardrailResult.ruleId,
+    eval_path: "llm-eval",
+    latency_ms,
+  });
+
+  // 11. Slack notification on HOLD
+  if (finalDecision === "HOLD") {
     sendSlackNotification({
       agent_id: agent.id,
       action_type,
       payload: sanitizedPayload,
       decision: "HOLD",
       guardrail_hit: guardrailResult.ruleId,
-      reason: `Held by ${guardrailResult.ruleName}`,
+      reason: llmResult.reason,
+      risk_score: llmResult.risk_score,
+      blast_radius: llmResult.blast_radius,
       decision_id: auditRow.id,
-      latency_ms,
-    });
-
-    return NextResponse.json({
-      decision: "HOLD",
-      reason: `Held by guardrail ${guardrailResult.ruleId}: ${guardrailResult.ruleName}`,
       latency_ms,
     });
   }
 
-  // 8. LLM eval — placeholder until Anthropic key is added
-  const latency_ms = Date.now() - start;
-
-  await writeAuditLog({
-    agent_id: agent.id,
-    payload: sanitizedPayload,
-    action_type,
-    decision: "ALLOW",
-    eval_path: "llm-eval",
-    reason: "Passed guardrails — LLM eval pending",
-    latency_ms,
-  });
-
   return NextResponse.json({
-    decision: "ALLOW",
-    reason: "Passed all guardrails",
+    decision: finalDecision,
+    intent: llmResult.intent,
+    risk_score: llmResult.risk_score,
+    blast_radius: llmResult.blast_radius,
+    reversible: llmResult.reversible,
+    reason: llmResult.reason,
     latency_ms,
   });
 }
