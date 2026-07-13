@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { useRouter } from "next/navigation";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -14,13 +13,12 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
 
   async function handleLogin() {
     setLoading(true);
     setError("");
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -31,7 +29,9 @@ export default function LoginPage() {
       return;
     }
 
-    router.push("/dashboard");
+    if (data.session) {
+      window.location.href = "/dashboard";
+    }
   }
 
   return (
@@ -82,3 +82,7 @@ export default function LoginPage() {
         <p className="text-center text-gray-600 text-xs mt-6">
           Kynethra v1.0 — Confidential
         </p>
+      </div>
+    </div>
+  );
+}
