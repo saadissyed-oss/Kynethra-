@@ -1,7 +1,7 @@
 import { validateEnv } from "@/lib/env";
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateAgent } from "@/lib/auth";
-import { evaluateGuardrails, ActionScope } from "@/lib/guardrails";
+import { evaluateGuardrails, ActionScope, BlastRadius } from "@/lib/guardrails";
 import { getActiveRules } from "@/lib/policy-cache";
 import { writeAuditLog } from "@/lib/audit";
 import { sendSlackNotification } from "@/lib/notify";
@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
     action_type,
     decision: finalDecision,
     risk_score: llmResult.risk_score,
-    blast_radius: llmResult.blast_radius as ActionScope,
+    blast_radius: llmResult.blast_radius as BlastRadius,
     reversible: llmResult.reversible,
     intent: llmResult.intent,
     reason: llmResult.reason,
