@@ -12,31 +12,14 @@ export async function middleware(req: NextRequest) {
   const origin = req.headers.get("origin") || "";
   const path = req.nextUrl.pathname;
   const isApiRoute = path.startsWith("/api/");
-  const isDashboardRoute = path.startsWith("/dashboard");
 
-  // CORS check for API routes
+  // CORS check for API routes only
   if (isApiRoute) {
     if (origin && !ALLOWED_ORIGINS.includes(origin)) {
       return NextResponse.json(
         { error: "CORS: Origin not allowed" },
         { status: 403 }
       );
-    }
-    return NextResponse.next();
-  }
-
-  // Auth check for dashboard routes
-  if (isDashboardRoute) {
-    const cookies = req.cookies.getAll();
-    const hasAuthCookie = cookies.some(
-      (cookie) =>
-        cookie.name.includes("sb-") &&
-        cookie.name.includes("auth-token") &&
-        cookie.value
-    );
-
-    if (!hasAuthCookie) {
-      return NextResponse.redirect(new URL("/login", req.url));
     }
   }
 
