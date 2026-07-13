@@ -4,11 +4,12 @@ import { useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 import { useRouter } from "next/navigation";
 
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
 export default function LoginPage() {
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -40,16 +41,13 @@ export default function LoginPage() {
           <h1 className="text-3xl font-bold text-white mb-2">KYNETHRA</h1>
           <p className="text-gray-400 text-sm">AI Agent Governance Platform</p>
         </div>
-
         <div className="bg-gray-900 border border-gray-800 rounded-lg p-8">
           <h2 className="text-xl font-semibold mb-6">Operator Login</h2>
-
           {error && (
             <div className="mb-4 p-3 bg-red-900/30 border border-red-800 rounded text-red-400 text-sm">
               {error}
             </div>
           )}
-
           <div className="space-y-4">
             <div>
               <label className="block text-sm text-gray-400 mb-1">Email</label>
@@ -61,7 +59,6 @@ export default function LoginPage() {
                 placeholder="operator@company.com"
               />
             </div>
-
             <div>
               <label className="block text-sm text-gray-400 mb-1">Password</label>
               <input
@@ -73,7 +70,6 @@ export default function LoginPage() {
                 placeholder="••••••••"
               />
             </div>
-
             <button
               onClick={handleLogin}
               disabled={loading}
@@ -83,11 +79,6 @@ export default function LoginPage() {
             </button>
           </div>
         </div>
-
         <p className="text-center text-gray-600 text-xs mt-6">
           Kynethra v1.0 — Confidential
         </p>
-      </div>
-    </div>
-  );
-}
