@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
 
 const ALLOWED_ORIGINS = [
   "http://localhost:3000",
@@ -28,10 +27,15 @@ export async function middleware(req: NextRequest) {
 
   // Auth check for dashboard routes
   if (isDashboardRoute) {
-    const supabaseToken = req.cookies.get("sb-access-token")?.value ||
-      req.cookies.get(`sb-${process.env.NEXT_PUBLIC_SUPABASE_URL?.split("//")[1]?.split(".")[0]}-auth-token`)?.value;
+    const cookies = req.cookies.getAll();
+    const hasAuthCookie = cookies.some(
+      (cookie) =>
+        cookie.name.includes("sb-") &&
+        cookie.name.includes("auth-token") &&
+        cookie.value
+    );
 
-    if (!supabaseToken) {
+    if (!hasAuthCookie) {
       return NextResponse.redirect(new URL("/login", req.url));
     }
   }
