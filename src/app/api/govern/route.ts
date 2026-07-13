@@ -1,7 +1,8 @@
 import { validateEnv } from "@/lib/env";
 import { NextRequest, NextResponse } from "next/server";
 import { authenticateAgent } from "@/lib/auth";
-import { evaluateGuardrails, ActionScope, BlastRadius } from "@/lib/guardrails";
+import { evaluateGuardrails, ActionScope } from "@/lib/guardrails";
+import { writeAuditLog, BlastRadius } from "@/lib/audit";
 import { getActiveRules } from "@/lib/policy-cache";
 import { writeAuditLog } from "@/lib/audit";
 import { sendSlackNotification } from "@/lib/notify";
