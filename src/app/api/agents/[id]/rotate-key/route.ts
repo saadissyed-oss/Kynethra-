@@ -3,15 +3,14 @@ import { createClient } from "@supabase/supabase-js";
 import { authenticateAgent } from "@/lib/auth";
 import crypto from "crypto";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 export async function POST(
   req: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  const supabase = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
   // Authenticate existing key
   const { agent, error } = await authenticateAgent(req);
   if (error || !agent) {
@@ -33,7 +32,7 @@ export async function POST(
   // Update in database
   const { data, error: updateError } = await supabase
     .from("agents")
-    .update({ api_key_hash: hashedKey })
+    .update({ api_key_hash: hashedKey } as any)
     .eq("id", params.id)
     .select()
     .single();

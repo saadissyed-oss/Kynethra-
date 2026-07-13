@@ -1,10 +1,16 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextRequest } from "next/server";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+let _supabase: ReturnType<typeof createClient> | null = null;
+function getSupabase() {
+  if (!_supabase) {
+    _supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+  }
+  return _supabase;
+}
 
 export function authenticateOperator(req: NextRequest): boolean {
   const key = req.headers.get("X-Kynethra-Operator-Key");
@@ -24,12 +30,12 @@ export async function authenticateAgent(req: NextRequest) {
   const hashedKey = createHash("sha256").update(apiKey).digest("hex");
 
   // Look up agent by hashed key
-  const { data: agent, error } = await supabase
+  const { data: agent, error } = await (getSupabase()
     .from("agents")
     .select("*")
     .eq("api_key_hash", hashedKey)
     .eq("status", "active")
-    .single();
+    .single() as any as Promise<{ data: Record<string, any> | null; error: any }>);
 
   if (error || !agent) {
     return { agent: null, error: "Invalid or inactive API key" };

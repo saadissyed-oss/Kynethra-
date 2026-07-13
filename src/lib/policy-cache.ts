@@ -1,10 +1,16 @@
 import { createClient } from "@supabase/supabase-js";
 import { GuardrailRule, DEFAULT_RULES } from "./guardrails";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+let _supabase: ReturnType<typeof createClient> | null = null;
+function getSupabase() {
+  if (!_supabase) {
+    _supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+  }
+  return _supabase;
+}
 
 interface PolicyCache {
   rules: GuardrailRule[];
@@ -26,7 +32,7 @@ export async function getActiveRules(): Promise<GuardrailRule[]> {
   }
 
   try {
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from("policies")
       .select("*")
       .order("id");
@@ -36,7 +42,7 @@ export async function getActiveRules(): Promise<GuardrailRule[]> {
       return cache.rules;
     }
 
-    const rules: GuardrailRule[] = data.map((row) => ({
+    const rules: GuardrailRule[] = (data as any[]).map((row) => ({
       id: row.id,
       name: row.name,
       pattern: new RegExp(row.pattern, "i"),

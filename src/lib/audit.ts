@@ -1,10 +1,16 @@
 import { createClient } from "@supabase/supabase-js";
 import crypto from "crypto";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+let _supabase: ReturnType<typeof createClient> | null = null;
+function getSupabase() {
+  if (!_supabase) {
+    _supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+  }
+  return _supabase;
+}
 
 export type DecisionOutcome = "ALLOW" | "HOLD" | "BLOCK";
 export type BlastRadius = "none" | "limited" | "significant" | "catastrophic";
@@ -41,14 +47,14 @@ export async function writeAuditLog(entry: AuditEntry) {
     created_at,
   });
 
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from("decisions")
     .insert({
       id,
       ...entry,
       row_signature,
       created_at,
-    })
+    } as any)
     .select()
     .single();
 
@@ -57,7 +63,7 @@ export async function writeAuditLog(entry: AuditEntry) {
     throw error;
   }
 
-  return data;
+  return data as any;
 }
 
 export function verifyRowSignature(
