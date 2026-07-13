@@ -85,7 +85,7 @@ export async function POST(req: NextRequest) {
 
   // 7. Fast guardrail check
   const rules = await getActiveRules();
-  const guardrailResult = evaluateGuardrails(sanitizedPayload, scope as any, rules);
+  const guardrailResult = evaluateGuardrails(sanitizedPayload, scope as ActionScope, rules);
 
   if (guardrailResult.triggered && guardrailResult.action === "BLOCK") {
     const latency_ms = Date.now() - start;
@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
     action_type,
     decision: finalDecision,
     risk_score: llmResult.risk_score,
-    blast_radius: llmResult.blast_radius as any,
+    blast_radius: llmResult.blast_radius as ActionScope,
     reversible: llmResult.reversible,
     intent: llmResult.intent,
     reason: llmResult.reason,
